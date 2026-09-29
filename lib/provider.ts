@@ -1,5 +1,6 @@
 import { Message, OpenAIOutputItem, Provider, toolDefinitions } from './contracts';
-export function buildRequest(provider: Provider, model: string, messages: Message[], system: string, work: boolean) {
+export function buildRequest(provider: Provider, model: string, messages: Message[], system: string, work: boolean, enabledTools?: string[]) {
+  const tools = toolDefinitions.filter(tool => !enabledTools || enabledTools.includes(tool.name));
   if (provider === 'openai') {
     const input: Record<string, unknown>[] = [];
     for (const m of messages) {
@@ -27,7 +28,7 @@ export function buildRequest(provider: Provider, model: string, messages: Messag
     return {
       model, instructions: system, input, store: false,
       include: ['reasoning.encrypted_content'],
-      ...(work ? { tools: toolDefinitions.map(t => ({ type: 'function', ...t, strict: true })) } : {}),
+      ...(work && tools.length ? { tools: tools.map(t => ({ type: 'function', ...t, strict: true })) } : {}),
     };
   }
   if (provider === 'anthropic') {
@@ -42,12 +43,12 @@ export function buildRequest(provider: Provider, model: string, messages: Messag
       if (converted.at(-1)?.role === role) converted.at(-1)!.content.push(...content);
       else converted.push({ role, content });
     }
-    return { model, max_tokens: 8192, system, messages: converted, ...(work ? { tools: toolDefinitions.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters })) } : {}) };
+    return { model, max_tokens: 8192, system, messages: converted, ...(work && tools.length ? { tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters })) } : {}) };
   }
   return { model, messages: [{ role: 'system', content: system }, ...messages.map(m => m.role === 'tool' ? { role: 'tool', tool_call_id: m.toolCallId, content: m.content } : {
     role: m.role, content: m.images?.length ? [{ type: 'text', text: m.content || 'Inspect the attached image.' }, ...m.images.map(url => ({ type: 'image_url', image_url: { url } }))] : m.content || null,
     ...(m.toolCalls?.length ? { tool_calls: m.toolCalls.map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.arguments } })) } : {}),
-  })], ...(work ? { tools: toolDefinitions.map(t => ({ type: 'function', function: t })) } : {}) };
+  })], ...(work && tools.length ? { tools: tools.map(t => ({ type: 'function', function: t })) } : {}) };
 }
 export function normalizeResponse(provider: Provider, data: any, model?: string): Message {
   if (provider === 'openai') {

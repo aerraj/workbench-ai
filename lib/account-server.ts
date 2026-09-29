@@ -1,6 +1,7 @@
 import { decrypt, tokenHash, fingerprint } from './crypto';
 import type { Provider } from './contracts';
-export type Bindings={DB:D1Database;VAULT_MASTER_KEY:string};
+import { ZodError } from 'zod';
+export type Bindings={DB:D1Database;VAULT_MASTER_KEY:string;BUCKET?:R2Bucket};
 export class HttpError extends Error { constructor(public status:number,message:string){super(message);} }
 export async function bindings():Promise<Bindings> { const {env}=await import('cloudflare:workers');if(!env.DB||!env.VAULT_MASTER_KEY)throw new HttpError(503,'Account service is not configured.');return env as Bindings; }
 export const json=(data:unknown,status=200,headers:Record<string,string>={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}});
@@ -28,4 +29,4 @@ export async function savedKey(request:Request,provider:Provider,model:string) {
  if(!row||!JSON.parse(row.models).includes(model))throw new HttpError(400,'Enable this model in Models & keys first.');
  return decrypt(row.encrypted_key,env.VAULT_MASTER_KEY,`${user.id}:${provider}`);
 }
-export function failure(error:unknown) {return json({error:error instanceof HttpError?error.message:'Could not complete the request. Please try again.'},error instanceof HttpError?error.status:500);}
+export function failure(error:unknown) {return json({error:error instanceof HttpError?error.message:error instanceof ZodError?'Invalid request. Check the supplied fields.':'Could not complete the request. Please try again.'},error instanceof HttpError?error.status:error instanceof ZodError?400:500);}

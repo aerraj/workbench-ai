@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+const base=process.env.TEST_BASE_URL||'http://localhost:5173';if(!/^http:\/\/(localhost|127\.0\.0\.1):/.test(base))throw new Error('Workspace tests only run locally.');
+const suffix=crypto.randomUUID().slice(0,8),password='test-'+crypto.randomUUID();
+async function call(cookie,path,method='GET',body){const r=await fetch(base+path,{method,headers:{origin:base,...(cookie?{cookie}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();return {status:r.status,data,cookie:r.headers.get('set-cookie')?.split(';')[0]||cookie};}
+const a=await call('','/api/account','POST',{action:'register',username:'space_a_'+suffix,password});const b=await call('','/api/account','POST',{action:'register',username:'space_b_'+suffix,password});assert.equal(a.status,200);assert.equal(b.status,200);
+const chatId=crypto.randomUUID(),messageId=crypto.randomUUID(),fileId=crypto.randomUUID();
+assert.equal((await call(a.cookie,'/api/workspace','POST',{action:'chat',id:chatId,title:'Quarterly plan'})).status,200);
+assert.equal((await call(a.cookie,'/api/workspace','POST',{action:'message',chatId,id:messageId,position:0,message:{role:'user',content:'A private note'}})).status,200);
+const form=new FormData();form.set('chatId',chatId);form.set('id',fileId);form.set('name','brief.txt');form.set('text','Sensitive test content');form.set('file',new File(['Sensitive test content'],'brief.txt',{type:'text/plain'}));
+const saved=await fetch(base+'/api/workspace',{method:'POST',headers:{origin:base,cookie:a.cookie},body:form});assert.equal(saved.status,200,await saved.text());
+const chat=await call(a.cookie,`/api/workspace?chat=${chatId}`);assert.equal(chat.data.messages[0].content,'A private note');assert.equal(chat.data.files[0].text,'Sensitive test content');
+assert.equal((await call(b.cookie,`/api/workspace?chat=${chatId}`)).status,404);
+const bChat=crypto.randomUUID();await call(b.cookie,'/api/workspace','POST',{action:'chat',id:bChat,title:'Other account'});assert.equal((await call(b.cookie,'/api/workspace','POST',{action:'message',chatId:bChat,id:messageId,position:0,message:{role:'user',content:'Attack'}})).status,403);assert.equal((await call(a.cookie,`/api/workspace?chat=${chatId}`)).data.messages[0].content,'A private note');
+assert.equal((await call(b.cookie,`/api/workspace?file=${fileId}`)).status,404);
+const file=await fetch(base+`/api/workspace?file=${fileId}`,{headers:{cookie:a.cookie}});assert.equal(await file.text(),'Sensitive test content');
+const artifact=await call(a.cookie,'/api/workspace','POST',{action:'artifact',chatId,title:'brief.md',kind:'document',content:'# First'});assert.equal(artifact.status,200);const next=await call(a.cookie,'/api/workspace','POST',{action:'artifact',chatId,title:'brief.md',kind:'document',content:'# Second'});assert.equal(next.data.artifact.version,2);assert.equal(next.data.artifact.id,artifact.data.artifact.id);
+assert.equal((await call(a.cookie,'/api/workspace','PATCH',{action:'rename',chatId,title:'Renamed'})).status,200);
+assert.equal((await call(a.cookie,'/api/workspace','DELETE',{action:'messages',chatId,position:0})).status,200);
+assert.equal((await call(a.cookie,`/api/workspace?chat=${chatId}`)).data.messages.length,0);
+assert.equal((await call(a.cookie,'/api/workspace','DELETE',{action:'chat',chatId})).status,200);
+console.log('PASS: encrypted cloud chat, per-message save, file round-trip, account isolation, artifact versions, edit and deletion.');

@@ -14,6 +14,7 @@ test('Word creation round-trips headings, paragraphs, bold and lists',async()=>{
  const blob=await makeDocument('# Quarterly report\nRevenue grew by **20%**.\n- Next action');
  const result=await mammoth.extractRawText({buffer:Buffer.from(await blob.arrayBuffer())});
  assert.match(result.value,/Quarterly report/); assert.match(result.value,/Revenue grew by 20%/);assert.match(result.value,/Next action/);
+ const table=await makeDocument('| Name | Revenue |\n| --- | --- |\n| Acme | 42 |');const extracted=await mammoth.extractRawText({buffer:Buffer.from(await table.arrayBuffer())});assert.match(extracted.value,/Acme/);assert.match(extracted.value,/Revenue/);
  const generated=await executeTool(call('create_document',{filename:'report',content:'# Report\nDone.'}),[]);
  assert.equal(generated.asset?.name,'report.docx');assert.ok(generated.asset!.size>100);
 });
