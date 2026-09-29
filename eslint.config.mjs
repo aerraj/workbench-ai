@@ -11,8 +11,26 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
+    ".wrangler/**",
+    "public/pdf.worker.min.mjs",
     "next-env.d.ts",
   ]),
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      // Provider payloads have different shapes, and many existing adapters
+      // validate them at runtime before narrowing.
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["components/account-gate.tsx", "features/{artifacts,chat,workbench}.tsx"],
+    rules: {
+      // These effects restore persisted UI state or reset local editor state.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
     rules: {

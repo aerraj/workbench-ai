@@ -9,14 +9,22 @@ export function calculate(expression: string): number {
   const result = sum(); if (i !== tokens.length || !Number.isFinite(result)) throw new Error('Invalid expression or division by zero'); return result;
 }
 export async function makeDocument(content: string): Promise<Blob> {
-  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = await import('docx');
-  const paragraphs = content.split('\n').map(line => {
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun, Table, TableRow, TableCell, WidthType } = await import('docx');
+  const paragraph = (line:string) => {
     const h = line.match(/^(#{1,3})\s+(.*)/); const bullet = /^[-*]\s+/.test(line);
     const text = h ? h[2] : line.replace(/^[-*]\s+/, '');
     const runs = text.split(/(\*\*.*?\*\*)/g).map(part => new TextRun({ text: part.replace(/^\*\*|\*\*$/g, ''), bold: part.startsWith('**') }));
     return new Paragraph({ children: runs, ...(h ? { heading: [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3][h[1].length-1] } : {}), ...(bullet ? { bullet: { level: 0 } } : {}), spacing: { after: 160 } });
-  });
-  return Packer.toBlob(new Document({ creator: 'Workbench', styles: { default: { document: { run: { font: 'Calibri', size: 22 } } } }, sections: [{ children: paragraphs }] }));
+  };
+  const lines=content.split('\n'),children:(ReturnType<typeof paragraph>|InstanceType<typeof Table>)[]=[];
+  const cells=(line:string)=>line.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].includes('|')&&i+1<lines.length&&/^\s*\|?\s*:?-{3,}/.test(lines[i+1])){
+      const rows=[cells(lines[i])];i+=2;while(i<lines.length&&lines[i].includes('|')){rows.push(cells(lines[i]));i++;}i--;
+      children.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:rows.map((row,rowIndex)=>new TableRow({children:row.map(value=>new TableCell({children:[new Paragraph({children:[new TextRun({text:value,bold:rowIndex===0})]})]}))}))}));
+    }else children.push(paragraph(lines[i]));
+  }
+  return Packer.toBlob(new Document({ creator: 'Workbench', styles: { default: { document: { run: { font: 'Calibri', size: 22 } } } }, sections: [{ children }] }));
 }
 export async function readUpload(file: File): Promise<Asset> {
   if (file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: maximum file size is 10 MB.`);

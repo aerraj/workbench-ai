@@ -1,0 +1,4 @@
+import { create } from 'zustand';
+import type { ChatSummary, ChatMessage, Artifact, WorkspaceAsset } from './types';
+type State={chats:ChatSummary[];chatId:string|null;messages:ChatMessage[];files:WorkspaceAsset[];artifacts:Artifact[];activeArtifact:string|null;setChats:(v:ChatSummary[])=>void;setChatId:(v:string|null)=>void;setMessages:(v:ChatMessage[])=>void;setFiles:(v:WorkspaceAsset[])=>void;setArtifacts:(v:Artifact[])=>void;setActiveArtifact:(v:string|null)=>void;reset:()=>void};
+export const useWorkspace=create<State>(set=>({chats:[],chatId:null,messages:[],files:[],artifacts:[],activeArtifact:null,setChats:chats=>set({chats}),setChatId:chatId=>set({chatId}),setMessages:messages=>set({messages}),setFiles:files=>set({files}),setArtifacts:artifacts=>set({artifacts}),setActiveArtifact:activeArtifact=>set({activeArtifact}),reset:()=>set({chats:[],chatId:null,messages:[],files:[],artifacts:[],activeArtifact:null})}));

@@ -1,4 +1,4 @@
-import { get,set } from 'idb-keyval';
+import { get,set,del } from 'idb-keyval';
 import type { Account } from './catalog';
 import type { Conversation } from './contracts';
 async function keyFor(user:Account) { return crypto.subtle.importKey('raw',Uint8Array.from(atob(user.workspaceKey),c=>c.charCodeAt(0)), 'AES-GCM', false, ['encrypt','decrypt']); }
@@ -13,3 +13,5 @@ export async function saveConversations(user:Account,conversations:Conversation[
  const iv=crypto.getRandomValues(new Uint8Array(12));const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(user.id)},await keyFor(user),new TextEncoder().encode(JSON.stringify(data)));
  await set(`workbench:${user.id}`,{iv,data:encrypted});
 }
+
+export async function clearConversations(user:Account){await del(`workbench:${user.id}`);}
