@@ -3,9 +3,9 @@ import { buildRequest, normalizeResponse } from '@/lib/provider';
 const schema = z.object({
   provider: z.enum(['openai','anthropic','gemini','openrouter']), key: z.string().min(8).max(512), model: z.string().min(1).max(150), work: z.boolean(),
   files: z.array(z.object({ id: z.string(), name: z.string().max(200), type: z.string(), size: z.number() })).max(30),
-  messages: z.array(z.object({ role: z.enum(['user','assistant','tool']), content: z.string().max(180000), images: z.array(z.string().regex(/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/)).max(4).optional(), toolCalls: z.array(z.object({ id: z.string(), name: z.string(), arguments: z.string() })).max(10).optional(), toolCallId: z.string().optional() })).min(1).max(200),
+  messages: z.array(z.object({ role: z.enum(['user','assistant','tool']), content: z.string().max(180000), images: z.array(z.string().regex(/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/)).max(4).optional(), toolCalls: z.array(z.object({ id: z.string(), name: z.string(), arguments: z.string() })).max(10).optional(), toolCallId: z.string().optional(), openaiModel: z.string().max(150).optional(), openaiOutput: z.array(z.object({ type: z.enum(['reasoning', 'message', 'function_call']) }).passthrough()).max(100).optional() })).min(1).max(200),
 });
-const endpoints = { openai: 'https://api.openai.com/v1/chat/completions', anthropic: 'https://api.anthropic.com/v1/messages', gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', openrouter: 'https://openrouter.ai/api/v1/chat/completions' };
+const endpoints = { openai: 'https://api.openai.com/v1/responses', anthropic: 'https://api.anthropic.com/v1/messages', gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', openrouter: 'https://openrouter.ai/api/v1/chat/completions' };
 export async function POST(request: Request) {
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
   const origin = request.headers.get('origin');
@@ -23,6 +23,6 @@ export async function POST(request: Request) {
     const response = await fetch(endpoints[provider], { method: 'POST', headers, body: JSON.stringify(buildRequest(provider, model, messages, system, work)), signal: AbortSignal.timeout(110000) });
     const data: any = await response.json();
     if (!response.ok) return json({ error: response.status === 401 || response.status === 403 ? 'The provider rejected this API key or model access. Check Settings.' : response.status === 429 ? 'Provider rate or credit limit reached. Check your balance or try again later.' : String(data.error?.message || 'The model request failed.').replaceAll(key, '[redacted]').slice(0,500) }, response.status >= 400 && response.status < 600 ? response.status : 502);
-    return json(normalizeResponse(provider, data));
+    return json(normalizeResponse(provider, data, model));
   } catch (e) { return json({ error: e instanceof Error && e.name === 'TimeoutError' ? 'The model timed out. Please retry.' : 'Could not complete the request. Check the connection and retry.' }, 502); }
 }

@@ -36,6 +36,12 @@ Vite generates `dist/server/wrangler.json`; deploy this generated configuration.
 
 Optional GitHub Actions deployment is available with manual dispatch. Set repository secrets `CLOUDFLARE_API_TOKEN` (Workers edit and account read) and `CLOUDFLARE_ACCOUNT_ID` first. Do not commit credentials.
 
+## OpenAI reasoning and tool calls
+
+OpenAI requests use `/v1/responses`, so models such as `gpt-5.6-sol` can use Work-mode function tools with their default reasoning enabled. Function results are linked by `call_id`. Replayable output items, including encrypted reasoning state, are retained in the browser conversation and sent back on subsequent requests to the same model. Requests set `store: false`; no server-managed conversation is required. Older conversations are converted automatically, and other providers retain their existing adapters.
+
+After updating an already-open tab, refresh Workbench, re-enter your API key, and keep `gpt-5.6-sol` in the OpenAI Model ID field. No change to your model selection or provider account is required for this fix.
+
 ## Checks
 
 ```sh
@@ -44,7 +50,7 @@ npm run typecheck
 npm run build
 ```
 
-Tests cover Word creation/extraction, CSV statistics, arithmetic parsing, file validation, all four provider adapters, cross-origin rejection, and request size validation. Provider HTTP responses in automated tests are mocked. Real model availability and billing depend on your account and API key.
+Tests cover Word creation/extraction, CSV statistics, arithmetic parsing, file validation, all four provider adapters, cross-origin rejection, and request size validation. Regression tests also cover a complete Responses function-call / Word-generation / tool-result cycle, encrypted reasoning replay through API validation, parallel tools, legacy history, and provider switching. Provider HTTP responses in automated tests are mocked. Real model availability and billing depend on your account and API key.
 
 ## Boundaries
 

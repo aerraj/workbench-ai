@@ -1,6 +1,7 @@
 export type Provider = 'openai' | 'anthropic' | 'gemini' | 'openrouter';
 export type ToolCall = { id: string; name: string; arguments: string };
-export type Message = { role: 'user' | 'assistant' | 'tool'; content: string; images?: string[]; toolCalls?: ToolCall[]; toolCallId?: string; model?: string };
+export type OpenAIOutputItem = { type: 'reasoning' | 'message' | 'function_call'; [key: string]: unknown };
+export type Message = { role: 'user' | 'assistant' | 'tool'; content: string; images?: string[]; toolCalls?: ToolCall[]; toolCallId?: string; model?: string; openaiOutput?: OpenAIOutputItem[]; openaiModel?: string };
 export type Asset = { id: string; name: string; type: string; size: number; text?: string; data?: string; blob: Blob; generated?: boolean };
 export type Conversation = { id: string; title: string; messages: Message[]; assets: Asset[]; updated: number };
 export const providers: Record<Provider, { name: string; model: string; color: string }> = {
