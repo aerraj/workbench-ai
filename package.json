@@ -17,7 +17,10 @@
     "predev": "npm run prepare:pdf",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json"
+    "deploy": "npm run db:migrate:remote && npm run build && wrangler deploy --config dist/server/wrangler.json",
+    "setup:local": "node scripts/setup-local.mjs",
+    "test:accounts": "node scripts/run-account-tests.mjs",
+    "db:migrate:remote": "wrangler d1 migrations apply workbench-accounts --remote --config wrangler.db.json"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

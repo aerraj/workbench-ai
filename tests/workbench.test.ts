@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculate, executeTool, makeDocument, readUpload } from '../lib/workspace-tools';
 import { buildRequest, normalizeResponse } from '../lib/provider';
-import { POST } from '../app/api/chat/route';
+import { handleChat } from '../lib/chat-handler';
+const POST=(request:Request)=>handleChat(request,async()=> 'test-key-only');
 import mammoth from 'mammoth';
 const call = (name:string, args:unknown) => ({ id:'tool-1', name, arguments:JSON.stringify(args) });
 test('arithmetic parser honors precedence, parentheses and unary negatives; rejects code and zero division',()=>{

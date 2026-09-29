@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+const base=process.env.TEST_BASE_URL||'http://localhost:5173';
+if(!/^http:\/\/(localhost|127\.0\.0\.1):/.test(base))throw new Error('Account tests must target a local test server.');
+const suffix=crypto.randomUUID().slice(0,8);const password='test-'+crypto.randomUUID();
+async function request(path,{cookie='',method='GET',body,expectedUser}={}){
+ const response=await fetch(base+path,{method,headers:{origin:base,...(cookie?{cookie}:{}),...(expectedUser?{'X-Workbench-User':expectedUser}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+ const json=await response.json();return {status:response.status,body:json,cookie:response.headers.get('set-cookie')?.split(';')[0]||cookie};
+}
+assert.equal((await request('/api/credentials')).status,401);
+assert.equal((await request('/api/chat',{method:'POST',body:{}})).status,401);
+const foreign=await fetch(base+'/api/account',{method:'POST',headers:{origin:'https://foreign.example','content-type':'application/json'},body:JSON.stringify({action:'register',username:'foreign',password})});assert.equal(foreign.status,403);
+const a=await request('/api/account',{method:'POST',body:{action:'register',username:'test_a_'+suffix,password}});assert.equal(a.status,200,JSON.stringify(a.body));
+const b=await request('/api/account',{method:'POST',body:{action:'register',username:'test_b_'+suffix,password}});assert.equal(b.status,200,JSON.stringify(b.body));
+const meA=await request('/api/account',{cookie:a.cookie}),meB=await request('/api/account',{cookie:b.cookie});
+assert.notEqual(meA.body.user.id,meB.body.user.id);assert.notEqual(meA.body.user.workspaceKey,meB.body.user.workspaceKey);
+const key='test-api-key-'+crypto.randomUUID();
+assert.equal((await request('/api/credentials',{cookie:a.cookie,method:'POST',body:{provider:'openai',key,models:['gpt-5.6-sol']}})).status,200);
+let saved=await request('/api/credentials',{cookie:a.cookie});assert.equal(saved.body.credentials[0].last4,key.slice(-4));assert.ok(!JSON.stringify(saved.body).includes(key));assert.ok(!JSON.stringify(saved.body).includes('encrypted_key'));
+assert.deepEqual((await request('/api/credentials',{cookie:b.cookie})).body.credentials,[]);
+assert.equal((await request('/api/credentials',{cookie:b.cookie,method:'POST',body:{provider:'openai',key,models:['gpt-5.6-sol']}})).status,409);
+assert.equal((await request('/api/credentials',{cookie:b.cookie,method:'POST',body:{provider:'openai',models:['gpt-5.6-sol'],user_id:meA.body.user.id}})).status,400);
+assert.equal((await request('/api/credentials',{cookie:b.cookie,expectedUser:meA.body.user.id})).status,401);
+assert.equal((await request('/api/account',{cookie:a.cookie,method:'POST',body:{action:'theme',theme:'dark'}})).status,200);
+assert.equal((await request('/api/account',{cookie:a.cookie})).body.user.theme,'dark');assert.equal((await request('/api/account',{cookie:b.cookie})).body.user.theme,'light');
+assert.equal((await request('/api/account',{cookie:a.cookie,method:'POST',body:{action:'logout'}})).status,200);
+assert.equal((await request('/api/credentials',{cookie:a.cookie})).status,401);
+const login=await request('/api/account',{method:'POST',body:{action:'login',username:'test_a_'+suffix,password}});assert.equal(login.status,200);
+saved=await request('/api/credentials',{cookie:login.cookie});assert.deepEqual(saved.body.credentials[0].models,['gpt-5.6-sol']);
+assert.equal((await request('/api/credentials',{cookie:login.cookie,method:'POST',body:{provider:'openai',models:[]}})).status,200);
+assert.equal((await request('/api/chat',{cookie:login.cookie,method:'POST',body:{provider:'openai',model:'gpt-5.6-sol',key:'client-injected-key',work:true,files:[],messages:[{role:'user',content:'Hi'}]}})).status,400);
+const newPassword='changed-'+crypto.randomUUID();assert.equal((await request('/api/account',{cookie:login.cookie,method:'POST',body:{action:'password',current:password,password:newPassword}})).status,200);
+assert.equal((await request('/api/account',{cookie:login.cookie})).status,401);
+assert.equal((await request('/api/account',{method:'POST',body:{action:'login',username:'test_a_'+suffix,password}})).status,401);
+const relogin=await request('/api/account',{method:'POST',body:{action:'login',username:'test_a_'+suffix,password:newPassword}});assert.equal(relogin.status,200);
+assert.equal((await request('/api/credentials',{cookie:b.cookie,method:'DELETE',body:{provider:'openai'}})).status,200);assert.equal((await request('/api/credentials',{cookie:relogin.cookie})).body.credentials.length,1);
+assert.equal((await request('/api/credentials',{cookie:relogin.cookie,method:'DELETE',body:{provider:'openai'}})).status,200);
+assert.equal((await request('/api/credentials',{cookie:relogin.cookie})).body.credentials.length,0);
+console.log('PASS: registration, login, encrypted key storage, uniqueness, per-user isolation, session revocation, theme persistence, model enforcement, key deletion and password change.');
