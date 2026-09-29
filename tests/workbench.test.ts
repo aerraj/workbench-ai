@@ -31,7 +31,7 @@ test('file tools reject missing files, malformed input and unknown tool names',a
 });
 test('OpenAI and Anthropic adapters preserve image and tool round-trips',()=>{
  const messages:any=[{role:'user',content:'Read image',images:['data:image/png;base64,YQ==']},{role:'assistant',content:'',toolCalls:[call('calculate',{expression:'1+2'})]},{role:'tool',content:'3',toolCallId:'tool-1'}];
- const open:any=buildRequest('openai','model',messages,'system',true);assert.equal(open.input[0].content[1].image_url,messages[0].images[0]); assert.equal(open.input[2].call_id,'tool-1');assert.equal(open.input[2].type,'function_call_output');assert.equal(open.tools.length,5);
+ const open:any=buildRequest('openai','model',messages,'system',true);assert.equal(open.input[0].content[1].image_url,messages[0].images[0]); assert.equal(open.input[2].call_id,'tool-1');assert.equal(open.input[2].type,'function_call_output');assert.equal(open.tools.length,7);assert.equal(open.tools.find((t:any)=>t.name==='create_presentation').strict,false);assert.equal(open.tools.find((t:any)=>t.name==='generate_image').strict,false);
  const anthropic:any=buildRequest('anthropic','model',messages,'system',true);assert.equal(anthropic.messages[0].content[1].source.data,'YQ==');assert.equal(anthropic.messages[2].content[0].tool_use_id,'tool-1');
  assert.equal(normalizeResponse('anthropic',{content:[{type:'text',text:'Done'},{type:'tool_use',id:'t',name:'calculate',input:{expression:'1+2'}}]}).toolCalls?.[0].name,'calculate');
  assert.equal(normalizeResponse('gemini',{choices:[{message:{content:'Done'}}]}).content,'Done');

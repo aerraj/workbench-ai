@@ -35,18 +35,29 @@ export async function readUpload(file: File): Promise<Asset> {
     asset.data = await new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(file); });
   } else if (ext === 'docx') {
     const mammoth = await import('mammoth'); const { value } = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() }); asset.text = value;
+  } else if (ext === 'pptx') {
+    const {default:JSZip}=await import('jszip');const zip=await JSZip.loadAsync(await file.arrayBuffer());
+    const names=Object.keys(zip.files).filter(name=>/^ppt\/slides\/slide\d+\.xml$/.test(name)).sort((a,b)=>Number(a.match(/\d+/)?.[0])-Number(b.match(/\d+/)?.[0]));
+    if(!names.length||names.length>100)throw new Error('This presentation has no readable slides or exceeds 100 slides.');
+    const decode=(value:string)=>value.replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n))).replace(/&(?:amp|lt|gt|quot|apos);/g,x=>({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"})[x]||x);
+    asset.text=(await Promise.all(names.map(async(name,i)=>{const xml=await zip.files[name].async('string');return `Slide ${i+1}\n`+[...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(m=>decode(m[1])).join(' · ');}))).join('\n\n');
   } else if (ext === 'pdf') {
     const pdfjs = await import('pdfjs-dist'); pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     const loading = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }); const doc = await loading.promise;
     try { if (doc.numPages > 100) throw new Error('PDFs can contain up to 100 pages.'); const pages: string[] = []; for (let p = 1; p <= doc.numPages; p++) { const page = await doc.getPage(p); const text = await page.getTextContent(); pages.push(text.items.map(item => 'str' in item ? item.str : '').join(' ')); } asset.text = pages.join('\n\n'); if (!asset.text.trim()) throw new Error('This PDF contains no readable text. Upload page images for visual analysis.'); } finally { await loading.destroy(); }
   } else if (['txt','md','csv','json','js','ts','tsx','jsx','py','html','css','xml','yaml','yml','log'].includes(ext || '')) { asset.text = await file.text(); }
-  else throw new Error(`${file.name}: use DOCX, PDF, text, CSV, code, or PNG/JPEG/WebP/GIF. Legacy .doc files must be saved as .docx.`);
+  else throw new Error(`${file.name}: use DOCX, PPTX, PDF, text, CSV, code, or PNG/JPEG/WebP/GIF. Legacy .doc files must be saved as .docx.`);
   if (asset.text && asset.text.length > 100000) throw new Error(`${file.name} exceeds 100,000 characters. Split it into smaller files.`);
   return asset;
 }
 export async function executeTool(call: ToolCall, assets: Asset[]): Promise<{ result: string; asset?: Asset }> {
   const args = JSON.parse(call.arguments);
   if (call.name === 'calculate') return { result: String(calculate(String(args.expression))) };
+  if (call.name === 'create_presentation') {
+    const {makePresentation}=await import('./presentation');const {blob,outline,filename}=await makePresentation(args,assets);
+    const asset:Asset={id:crypto.randomUUID(),name:filename,blob,size:blob.size,type:'application/vnd.openxmlformats-officedocument.presentationml.presentation',text:outline,generated:true};
+    return {result:`Created ${filename} with ${args.slides.length+1} slides. The editable PowerPoint is available for download. File ID: ${asset.id}`,asset};
+  }
   if (call.name === 'read_file' || call.name === 'analyze_csv') {
     const file = assets.find(a => a.id === args.id); if (!file) throw new Error('File not found');
     if (file.text === undefined) throw new Error('Image contents are supplied directly to the model.');

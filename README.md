@@ -4,7 +4,8 @@ Workbench is a personal AI workspace on Cloudflare Workers. It combines conversa
 
 ## First-release experience
 
-- One conversation composer with tools enabled by default. You can disable any of the five tools from the composer. File text is read through `read_file`; it is never pasted into your message.
+- One conversation composer with tools enabled by default. You can disable individual tools from the composer. File text is read through `read_file`; it is never pasted into your message.
+- Create editable PowerPoint `.pptx` decks with speaker notes and optional workspace images, or ask for a generated PNG image. Generated files become encrypted, downloadable artifacts. Uploaded `.pptx` slide text can be read as workspace context.
 - Answers stream from all four providers over server-sent events. Stop aborts the provider request. Tool progress appears as compact steps.
 - A centered reading column, collapsible sidebar, warm light and dark themes, and an artifact panel that opens only when a file is produced or selected.
 - Copy, edit and resend, retry, retry with another enabled model, thumbs up/down, and a bottom-aware scroll position with “Jump to latest.”
@@ -31,7 +32,7 @@ npm run dev
 
 Register an account, open Settings → Models & keys, save a provider key, and enable at least one model. Local development generates a separate ignored `.dev.vars` secret. To test local R2 storage, run `WORKBENCH_R2_BUCKET=workbench-files npm run dev`; the Cloudflare Vite plugin provides local R2 emulation.
 
-Upload a DOCX or CSV and ask Workbench to read and improve it. Images are sent to vision-capable models; choose a model with image support. Files are limited to 10 MB each (2 MB for images), 30 files per chat, four images and 100,000 extracted characters per file.
+Upload a DOCX, PPTX or CSV and ask Workbench to read and improve it. Images are sent to vision-capable models; choose a model with image support. Ask it to create a presentation or image and it will use the corresponding tool when enabled. Image generation uses the account's saved OpenAI key through the Images API, which may require organization verification and incurs provider charges. Files are limited to 10 MB each (2 MB for uploaded images), 30 files per chat, four image inputs and 100,000 extracted characters per file.
 
 ## Deploy
 
@@ -52,10 +53,10 @@ npm run setup:local
 npm run test:accounts
 ```
 
-The tests cover provider stream parsing, upstream cancellation, document creation, file tools, auth and key isolation, encrypted chat/file round-trips, artifact versions, and cross-account access. `test:accounts` starts a local server and runs both account and workspace integration checks. Provider requests are mocked in automated tests; real availability and charges depend on your keys and accounts.
+The tests cover provider stream parsing, upstream cancellation, Word and PowerPoint creation, large encrypted-file encoding, image API requests, file tools, auth and key isolation, encrypted chat/file round-trips, artifact versions, and cross-account access. `test:accounts` starts a local server and runs both account and workspace integration checks. Provider requests are mocked in automated tests; real availability and charges depend on your keys and accounts.
 
 ## Release scope
 
-This release implements the PRD's P0 experience, with several history, settings and shortcut improvements from P1. The remaining P1/P2 work includes a Durable Object agent loop that survives tab closure, projects with shared knowledge, provider-fetched catalogs and usage data, web/code tools, sharing, voice, and a full accessibility and performance audit. The current tool loop runs in the browser for up to eight rounds, and closing the tab stops it. Chat search currently matches titles; message indexing is still to come. Real first-token speed depends on the selected provider and network; the streaming path adds no intentional buffering.
+This release implements the PRD's P0 experience, with several history, settings and shortcut improvements from P1 plus presentation and image tools. The remaining P1/P2 work includes a Durable Object agent loop that survives tab closure, projects with shared knowledge, provider-fetched catalogs and usage data, web/code execution, sharing, voice, and a full accessibility and performance audit. The current tool loop runs in the browser for up to eight rounds, and closing the tab stops it. Chat search currently matches titles; message indexing is still to come. Real first-token speed depends on the selected provider and network; the streaming path adds no intentional buffering.
 
 Word creation supports headings, bold, lists and tables. Complex source formatting and scanned PDF text are not preserved. HTML artifacts are previewed without script execution. Download important files before deleting a chat. No email recovery is available for username/password accounts.

@@ -28,7 +28,7 @@ export function buildRequest(provider: Provider, model: string, messages: Messag
     return {
       model, instructions: system, input, store: false,
       include: ['reasoning.encrypted_content'],
-      ...(work && tools.length ? { tools: tools.map(t => ({ type: 'function', ...t, strict: true })) } : {}),
+      ...(work && tools.length ? { tools: tools.map(t => ({ type: 'function', ...t, strict: !['create_presentation','generate_image'].includes(t.name) })) } : {}),
     };
   }
   if (provider === 'anthropic') {

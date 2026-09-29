@@ -5,6 +5,10 @@ async function call(cookie,path,method='GET',body){const r=await fetch(base+path
 const a=await call('','/api/account','POST',{action:'register',username:'space_a_'+suffix,password});const b=await call('','/api/account','POST',{action:'register',username:'space_b_'+suffix,password});assert.equal(a.status,200);assert.equal(b.status,200);
 const chatId=crypto.randomUUID(),messageId=crypto.randomUUID(),fileId=crypto.randomUUID();
 assert.equal((await call(a.cookie,'/api/workspace','POST',{action:'chat',id:chatId,title:'Quarterly plan'})).status,200);
+const imageRequest={chatId,filename:'sample.png',prompt:'A simple test image'};
+const unavailableImage=await call(a.cookie,'/api/skills/image','POST',imageRequest);
+assert.equal(unavailableImage.status,400);assert.match(unavailableImage.data.error,/OpenAI API key/);
+assert.equal((await call(b.cookie,'/api/skills/image','POST',imageRequest)).status,404);
 assert.equal((await call(a.cookie,'/api/workspace','POST',{action:'message',chatId,id:messageId,position:0,message:{role:'user',content:'A private note'}})).status,200);
 const form=new FormData();form.set('chatId',chatId);form.set('id',fileId);form.set('name','brief.txt');form.set('text','Sensitive test content');form.set('file',new File(['Sensitive test content'],'brief.txt',{type:'text/plain'}));
 const saved=await fetch(base+'/api/workspace',{method:'POST',headers:{origin:base,cookie:a.cookie},body:form});assert.equal(saved.status,200,await saved.text());
