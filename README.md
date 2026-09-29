@@ -15,7 +15,7 @@ Workbench is a personal AI workspace on Cloudflare Workers. It combines conversa
 
 ## Storage
 
-D1 holds account and chat metadata, encrypted messages, artifact versions, and file metadata. With an R2 binding, encrypted file bytes are placed under `user/{userId}/files/{fileId}`. Without R2, file bytes are encrypted in bounded D1 chunks so the workspace still functions. The Cloudflare account used by the existing deployment currently needs R2 enabled in its dashboard before the R2 bucket can be created and attached.
+D1 holds account and chat metadata, encrypted messages, artifact versions, and file metadata. The production Worker uses the `workbench-files` R2 bucket, placing encrypted file bytes under `user/{userId}/files/{fileId}`. Without an R2 binding in local development, file bytes are encrypted in bounded D1 chunks so the workspace still functions.
 
 The `VAULT_MASTER_KEY` Worker secret wraps each account's data key and protects saved API keys. Keep it backed up securely and separate from the database. Never change it without a re-encryption migration. Production sessions use Secure, HttpOnly, SameSite=Strict cookies. Server routes enforce account ownership and same-origin writes.
 
@@ -37,12 +37,10 @@ Upload a DOCX or CSV and ask Workbench to read and improve it. Images are sent t
 
 ```sh
 npx wrangler login
-npm run db:migrate:remote
-npm run build
-npx wrangler deploy --config dist/server/wrangler.json
+npm run deploy
 ```
 
-The existing D1 database and `VAULT_MASTER_KEY` secret are already provisioned. After enabling R2 in Cloudflare, create a bucket named `workbench-files`, build with `WORKBENCH_R2_BUCKET=workbench-files npm run build`, and deploy the generated config. Existing D1-stored files remain readable after R2 is bound; new uploads use R2. For another installation, create your own D1 database, update `vite.config.ts` and `wrangler.db.json`, then set your own random 32-byte base64 `VAULT_MASTER_KEY` secret.
+The existing D1 database, `workbench-files` R2 bucket, and `VAULT_MASTER_KEY` secret are already provisioned. `npm run deploy` applies migrations, builds with the R2 binding, and deploys the generated config. Existing D1-stored files remain readable after R2 is bound; new uploads use R2. For another installation, create your own D1 database and R2 bucket, update `vite.config.ts`, `wrangler.db.json`, and the deploy script, then set your own random 32-byte base64 `VAULT_MASTER_KEY` secret.
 
 ## Verify
 
