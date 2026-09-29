@@ -1,5 +1,8 @@
 const encoder = new TextEncoder();
-export const encode64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+export const encode64 = (bytes: Uint8Array) => {
+ let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+ return btoa(binary);
+};
 export const decode64 = (s:string) => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
 export const randomSecret = () => encode64(crypto.getRandomValues(new Uint8Array(32)));
 async function derived(master:string, purpose:string, algorithm:'AES-GCM'|'HMAC') {
