@@ -21,3 +21,13 @@ test('production sessions use secure HttpOnly cookies and writes reject foreign 
  assert.match(sessionCookie(request,'token'),/^__Host-workbench_session=token/);assert.match(sessionCookie(request,'token'),/HttpOnly; SameSite=Strict; Max-Age=604800; Secure/);sameOrigin(request);
  assert.throws(()=>sameOrigin(new Request(request.url,{headers:{origin:'https://other.example'}})));assert.throws(()=>sameOrigin(new Request(request.url)));
 });
+
+test('Google OAuth uses RFC 7636 PKCE and a cross-site return cookie scoped to the host',async()=>{
+ const {pkceChallenge,oauthCookie,readOauthCookie}=await import('../lib/google-auth');
+ assert.equal(await pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+ const request=new Request('https://workbench.example/api/account/google');
+ const cookie=oauthCookie(request,'v1.a+b/c==');
+ assert.match(cookie,/^__Host-workbench_google=/);assert.match(cookie,/HttpOnly; SameSite=Lax; Max-Age=600; Secure/);
+ assert.equal(readOauthCookie(new Request(request.url,{headers:{cookie:cookie.split(';')[0]}})),'v1.a+b/c==');
+ assert.match(oauthCookie(request,'',0),/Max-Age=0/);
+});

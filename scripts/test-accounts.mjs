@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 const base=process.env.TEST_BASE_URL||'http://localhost:5173';
 if(!/^http:\/\/(localhost|127\.0\.0\.1):/.test(base))throw new Error('Account tests must target a local test server.');
-const suffix=crypto.randomUUID().slice(0,8);const password='test-'+crypto.randomUUID();
+const suffix=crypto.randomUUID().slice(0,8);const password='12345678';
 async function request(path,{cookie='',method='GET',body,expectedUser}={}){
  const response=await fetch(base+path,{method,headers:{origin:base,...(cookie?{cookie}:{}),...(expectedUser?{'X-Workbench-User':expectedUser}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
  const json=await response.json();return {status:response.status,body:json,cookie:response.headers.get('set-cookie')?.split(';')[0]||cookie};
@@ -9,6 +9,7 @@ async function request(path,{cookie='',method='GET',body,expectedUser}={}){
 assert.equal((await request('/api/credentials')).status,401);
 assert.equal((await request('/api/chat',{method:'POST',body:{}})).status,401);
 const foreign=await fetch(base+'/api/account',{method:'POST',headers:{origin:'https://foreign.example','content-type':'application/json'},body:JSON.stringify({action:'register',username:'foreign',password})});assert.equal(foreign.status,403);
+assert.equal((await request('/api/account',{method:'POST',body:{action:'register',username:'short_'+suffix,password:'1234567'}})).status,400);
 const a=await request('/api/account',{method:'POST',body:{action:'register',username:'test_a_'+suffix,password}});assert.equal(a.status,200,JSON.stringify(a.body));
 const b=await request('/api/account',{method:'POST',body:{action:'register',username:'test_b_'+suffix,password}});assert.equal(b.status,200,JSON.stringify(b.body));
 const meA=await request('/api/account',{cookie:a.cookie}),meB=await request('/api/account',{cookie:b.cookie});
@@ -28,7 +29,8 @@ const login=await request('/api/account',{method:'POST',body:{action:'login',use
 saved=await request('/api/credentials',{cookie:login.cookie});assert.deepEqual(saved.body.credentials[0].models,['gpt-5.6-sol']);
 assert.equal((await request('/api/credentials',{cookie:login.cookie,method:'POST',body:{provider:'openai',models:[]}})).status,200);
 assert.equal((await request('/api/chat',{cookie:login.cookie,method:'POST',body:{provider:'openai',model:'gpt-5.6-sol',key:'client-injected-key',work:true,files:[],messages:[{role:'user',content:'Hi'}]}})).status,400);
-const newPassword='changed-'+crypto.randomUUID();assert.equal((await request('/api/account',{cookie:login.cookie,method:'POST',body:{action:'password',current:password,password:newPassword}})).status,200);
+assert.equal((await request('/api/account',{cookie:login.cookie,method:'POST',body:{action:'password',current:password,password:'1234567'}})).status,400);
+const newPassword='87654321';assert.equal((await request('/api/account',{cookie:login.cookie,method:'POST',body:{action:'password',current:password,password:newPassword}})).status,200);
 assert.equal((await request('/api/account',{cookie:login.cookie})).status,401);
 assert.equal((await request('/api/account',{method:'POST',body:{action:'login',username:'test_a_'+suffix,password}})).status,401);
 const relogin=await request('/api/account',{method:'POST',body:{action:'login',username:'test_a_'+suffix,password:newPassword}});assert.equal(relogin.status,200);

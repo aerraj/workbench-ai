@@ -9,4 +9,4 @@ export const catalog: Record<Provider, {id:string;name:string}[]> = {
  openrouter:[{id:'openai/gpt-5.6-sol',name:'GPT-5.6 Sol'},{id:'openai/gpt-4.1',name:'GPT-4.1'},{id:'anthropic/claude-sonnet-4.5',name:'Claude Sonnet 4.5'},{id:'google/gemini-2.5-flash',name:'Gemini 2.5 Flash'}],
 };
 export type CredentialSummary = {provider:Provider;last4:string;models:string[]};
-export type Account = {id:string;username:string;theme:'light'|'dark';workspaceKey:string};
+export type Account = {id:string;username:string;theme:'light'|'dark';workspaceKey:string;authProvider?:'google'|'password'};

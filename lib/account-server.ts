@@ -1,7 +1,7 @@
 import { decrypt, tokenHash, fingerprint } from './crypto';
 import type { Provider } from './contracts';
 import { ZodError } from 'zod';
-export type Bindings={DB:D1Database;VAULT_MASTER_KEY:string;BUCKET?:R2Bucket};
+export type Bindings={DB:D1Database;VAULT_MASTER_KEY:string;GOOGLE_CLIENT_ID?:string;GOOGLE_CLIENT_SECRET?:string;BUCKET?:R2Bucket};
 export class HttpError extends Error { constructor(public status:number,message:string){super(message);} }
 export async function bindings():Promise<Bindings> { const {env}=await import('cloudflare:workers');if(!env.DB||!env.VAULT_MASTER_KEY)throw new HttpError(503,'Account service is not configured.');return env as Bindings; }
 export const json=(data:unknown,status=200,headers:Record<string,string>={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}});
@@ -12,7 +12,7 @@ export function sessionCookie(request:Request,token:string,maxAge=604800) {retur
 export function sessionToken(request:Request){return request.headers.get('cookie')?.split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName(request)+'='))?.split('=').slice(1).join('=');}
 export async function requireUser(request:Request,env:Bindings) {
  const token=sessionToken(request);if(!token)throw new HttpError(401,'Please sign in.');
- const user=await env.DB.prepare('SELECT u.id,u.username,u.theme,u.workspace_key FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await tokenHash(token),Date.now()).first<{id:string;username:string;theme:'light'|'dark';workspace_key:string}>();
+ const user=await env.DB.prepare('SELECT u.id,u.username,u.theme,u.workspace_key,u.google_sub FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await tokenHash(token),Date.now()).first<{id:string;username:string;theme:'light'|'dark';workspace_key:string;google_sub:string|null}>();
  if(!user)throw new HttpError(401,'Your session expired. Please sign in again.');const expected=request.headers.get('X-Workbench-User');if(expected&&expected!==user.id)throw new HttpError(401,'The signed-in account changed. Reload this tab.');return user;
 }
 export async function rateLimit(env:Bindings,id:string,max:number,seconds=900) {
