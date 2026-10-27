@@ -60,3 +60,14 @@ The tests cover provider stream parsing, upstream cancellation, Word and PowerPo
 This release implements the PRD's P0 experience, with several history, settings and shortcut improvements from P1 plus presentation and image tools. The remaining P1/P2 work includes a Durable Object agent loop that survives tab closure, projects with shared knowledge, provider-fetched catalogs and usage data, web/code execution, sharing, voice, and a full accessibility and performance audit. The current tool loop runs in the browser for up to eight rounds, and closing the tab stops it. Chat search currently matches titles; message indexing is still to come. Real first-token speed depends on the selected provider and network; the streaming path adds no intentional buffering.
 
 Word creation supports headings, bold, lists and tables. Complex source formatting and scanned PDF text are not preserved. HTML artifacts are previewed without script execution. Download important files before deleting a chat. No email recovery is available for username/password accounts.
+
+## Google sign-in
+
+Both sign-in and registration offer **Continue with Google**. The first Google sign-in creates a separate account; subsequent sign-ins use Google's stable subject ID. Existing username accounts are not automatically linked. Google-only accounts manage their password through Google. Username passwords require 8–128 characters, with no character composition rules (eight numeric digits are accepted).
+
+1. Create a Web application OAuth client in Google Cloud and configure the consent screen. While in testing, add your Google account as a test user.
+2. Register `https://YOUR_WORKBENCH_DOMAIN/api/account/google/callback` as an authorized redirect URI. For local development register `http://localhost:3000/api/account/google/callback` (adjust the port to your dev server).
+3. Set Worker secrets with `npx wrangler secret put GOOGLE_CLIENT_ID --name workbench-ai` and `npx wrangler secret put GOOGLE_CLIENT_SECRET --name workbench-ai`. For local development add these values to the ignored `.dev.vars` file.
+4. Run `npm run deploy` to apply migration `0004_google_auth.sql` and deploy.
+
+Google sign-in follows the [Google server OAuth flow](https://developers.google.com/identity/protocols/oauth2/web-server) with PKCE, an encrypted HttpOnly SameSite=Lax flow cookie, and a single-use, ten-minute state. Normal account sessions retain SameSite=Strict. Tokens and Google profile emails are not stored. Without the Google secrets, username login remains available and the Google endpoint returns a configuration message.
